@@ -1,10 +1,22 @@
 // The shapes the client and the server agree on. Both sides load this file with `import type`,
 // so it disappears when the code runs and only the type checker reads it.
 
+// One problem with one field of a request, such as { field: 'title', message: 'Enter a title' }.
+export interface Issue {
+  field: string;
+  message: string;
+}
+
 // Every error the API sends. `issues` is there for bad input (400), one entry per field.
 export interface ApiError {
   error: string;
-  issues?: { field: string; message: string }[];
+  issues?: Issue[];
+}
+
+// The 409 answer when the link is already saved: the existing bookmark comes with it, so the
+// client can offer to show that card instead.
+export interface DuplicateError extends ApiError {
+  existing: Bookmark;
 }
 
 // One saved link, as the API returns it.
@@ -40,10 +52,11 @@ export interface UpdateBookmark {
   read?: boolean;
 }
 
-// One page of the list. `nextCursor` is the id to ask for next, or null on the last page.
+// One page of the list. `nextCursor` is a marker to send back as ?cursor= for the next page,
+// or null on the last page. The client treats it as opaque text.
 export interface BookmarkPage {
   items: Bookmark[];
-  nextCursor: number | null;
+  nextCursor: string | null;
 }
 
 // A tag and how many of this owner's bookmarks carry it.

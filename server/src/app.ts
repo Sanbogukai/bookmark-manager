@@ -7,6 +7,12 @@ import express, { type ErrorRequestHandler, type Express } from 'express';
 import type { Db } from './db.ts';
 // The error shape every failure is sent in, shared with the client.
 import type { ApiError } from '../../shared/types.ts';
+// The bad-input error, whose field issues go into the answer.
+import { InputError } from './errors.ts';
+// Every route under /api.
+import { apiRouter } from './routes.ts';
+// The SSRF-guarded page fetcher, and the type a test's fake must match.
+import { type PageFetcher, createSafeFetch } from './safeFetch.ts';
 
 // The largest JSON body accepted. A bookmark is a URL, a title, a description and a few
 // tags, so 16 kB is plenty and stops anyone posting megabytes at the API.
@@ -17,11 +23,21 @@ const HTTP_NOT_FOUND = 404;
 const HTTP_SERVER_ERROR = 500;
 const HTTP_UNAVAILABLE = 503;
 
-// What the caller passes in. Only the database is required; the clock exists so a test can
-// fix the time.
+// Render puts proxies in front of the app; trusting this many hops lets req.ip be the
+// visitor's address (from X-Forwarded-For) instead of the proxy's, for the rate limits.
+const TRUSTED_PROXIES = 3;
+// Default rate limits: new owners per IP per hour, and previews per owner per minute.
+const OWNER_LIMIT = 10;
+const PREVIEW_LIMIT = 30;
+
+// What the caller passes in. Only the database is required; tests swap the clock to fix the
+// time, the fetcher to avoid the internet, and the limits to reach them quickly.
 export interface AppOptions {
   db: Db;
   now?: () => Date;
+  fetchPage?: PageFetcher;
+  ownerLimit?: number;
+  previewLimit?: number;
 }
 
 // The same services with every default filled in. The routers receive this.
@@ -30,10 +46,20 @@ export type AppDeps = Required<AppOptions>;
 // Returns a new, fully wired app.
 export function createApp(options: AppOptions): Express {
   // Fills in the defaults; anything the caller passed wins.
-  const deps: AppDeps = { now: () => new Date(), ...options };
+  const deps: AppDeps = {
+    now: () => new Date(),
+    ownerLimit: OWNER_LIMIT,
+    previewLimit: PREVIEW_LIMIT,
+    ...options,
+    // Built only when the caller did not pass one.
+    fetchPage: options.fetchPage ?? createSafeFetch(),
+  };
 
   // Creates the app that every middleware and route below is attached to.
   const app = express();
+
+  // Reads the visitor's address through the hosting proxies.
+  app.set('trust proxy', TRUSTED_PROXIES);
 
   // Parses JSON request bodies into req.body, refusing anything over the limit with a 413.
   app.use(express.json({ limit: JSON_LIMIT }));
@@ -50,6 +76,9 @@ export function createApp(options: AppOptions): Express {
       res.status(HTTP_UNAVAILABLE).json({ ok: false });
     }
   });
+
+  // Owners, bookmarks, tags and previews.
+  app.use('/api', apiRouter(deps));
 
   // Unknown API routes get JSON, not Express's HTML page. It runs only when no route
   // above matched, because a matching route ends the request.
@@ -68,6 +97,8 @@ export function createApp(options: AppOptions): Express {
     if (status >= HTTP_SERVER_ERROR) console.error(err);
     // A 500 never shows its internal message to the visitor; a 4xx explains what was wrong.
     const body: ApiError = { error: status >= HTTP_SERVER_ERROR ? 'Something went wrong' : err.message };
+    // Bad input also lists what was wrong with each field.
+    if (err instanceof InputError) body.issues = err.issues;
     res.status(status).json(body);
   };
   // Added last, so it catches errors from everything above.
