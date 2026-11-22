@@ -1,0 +1,80 @@
+// The database schema: every table, column and relation. `npm run migrate` turns changes here
+// into a SQL migration under prisma/migrations, and `prisma generate` turns it into a typed
+// client in src/generated/prisma.
+
+// The typed client. Written as TypeScript ES modules with .ts imports, so Node can run it
+// directly by stripping the types, like the rest of the server.
+generator client {
+  provider             = "prisma-client"
+  output               = "../src/generated/prisma"
+  runtime              = "nodejs"
+  moduleFormat         = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension  = "ts"
+}
+
+// PostgreSQL. The connection URL is not here: prisma.config.ts gives it to the CLI, and
+// src/db.ts gives it to the driver adapter at run time.
+datasource db {
+  provider = "postgresql"
+}
+
+// One browser's list. The browser keeps the key; the server finds the owner by it.
+model Owner {
+  id         Int        @id @default(autoincrement())
+  // A random UUID, made by the server on the first visit.
+  key        String     @unique @db.Uuid
+  createdAt  DateTime   @default(now())
+  // Owners not seen for 30 days are removed, with everything they saved.
+  lastSeenAt DateTime   @default(now())
+  bookmarks  Bookmark[]
+  tags       Tag[]
+}
+
+// One saved link.
+model Bookmark {
+  id          Int           @id @default(autoincrement())
+  ownerId     Int
+  // Deleting the owner deletes their bookmarks.
+  owner       Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  url         String
+  title       String
+  description String?
+  // The page's icon, resolved to an absolute URL; the browser loads it, never the server.
+  iconUrl     String?
+  // When it was marked read; NULL means unread.
+  readAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tags        BookmarkTag[]
+
+  // One bookmark per URL per owner; saving it again is a 409.
+  @@unique([ownerId, url])
+  // The list is read newest first, per owner, with id breaking ties for cursor paging.
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+// A tag name, per owner, stored in lower case.
+model Tag {
+  id        Int           @id @default(autoincrement())
+  ownerId   Int
+  owner     Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  bookmarks BookmarkTag[]
+
+  // The same name twice for one owner is the same tag.
+  @@unique([ownerId, name])
+}
+
+// The join table for the many-to-many relation: one row per tag on a bookmark.
+model BookmarkTag {
+  bookmarkId Int
+  tagId      Int
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  // A tag is on a bookmark once at most; the pair is the key.
+  @@id([bookmarkId, tagId])
+  // Finding every bookmark with a tag starts from the tag.
+  @@index([tagId])
+}
