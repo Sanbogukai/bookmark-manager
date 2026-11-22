@@ -1,0 +1,546 @@
+/* Reading List: warm paper, teal accent, serif titles. Light and dark follow the system setting. */
+
+:root {
+  color-scheme: light dark;
+  --paper: #faf7f0;
+  --card: #fffdf8;
+  --ink: #2a2622;
+  --muted: #6b6359;
+  --line: #e6dfd2;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0f2ef;
+  --danger: #b42318;
+  --shadow: 0 1px 2px rgb(42 38 34 / 0.06), 0 2px 8px rgb(42 38 34 / 0.05);
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1b1a17;
+    --card: #24221e;
+    --ink: #ece6da;
+    --muted: #a39b8f;
+    --line: #38342e;
+    --accent: #2dd4bf;
+    --accent-ink: #10201d;
+    --accent-soft: #163a35;
+    --danger: #f97066;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+}
+
+button:hover {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+button.link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 0.5rem 0.65rem;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+/* Top bar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.75rem;
+}
+
+.brand {
+  margin: 0 0.5rem 0 0;
+  font: 600 1.4rem var(--serif);
+  color: var(--accent);
+}
+
+.search {
+  flex: 1 1 16rem;
+}
+
+.switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.switch button {
+  border: none;
+  border-radius: 0;
+  background: var(--card);
+}
+
+.switch button + button {
+  border-left: 1px solid var(--line);
+}
+
+.switch button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Tag chips */
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0 1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 0.15rem 0.7rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.chip.small {
+  padding: 0.05rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chip .count {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.chip[aria-pressed='true'] .count {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* Cards */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.cards[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem;
+}
+
+/* A read card is dimmed piece by piece rather than as a whole, so its open menu stays solid. */
+.card.read .icon,
+.card.read .card-title,
+.card.read .description,
+.card.read .card-foot {
+  opacity: 0.62;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 0.2rem;
+  border-radius: 4px;
+}
+
+.icon.letter {
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title h2 {
+  margin: 0;
+  font: 600 1.08rem/1.3 var(--serif);
+  overflow-wrap: anywhere;
+}
+
+.card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-title a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.host {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.read-toggle {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.read-toggle[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Card menu */
+
+.menu {
+  position: relative;
+}
+
+.menu-button {
+  border: none;
+  background: none;
+  padding: 0 0.4rem;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.menu-list {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 9rem;
+  padding: 0.4rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+
+.menu-list button {
+  border: none;
+  text-align: left;
+}
+
+.menu-list button:hover {
+  background: var(--accent-soft);
+}
+
+.menu-list p {
+  margin: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+/* Paging, empty states, footer, toast */
+
+.load-more {
+  display: block;
+  margin: 1.5rem auto 0;
+}
+
+.loading {
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty h2 {
+  margin: 0 0 0.25rem;
+  font: 600 1.3rem var(--serif);
+}
+
+.empty p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 3rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+/* Add/edit dialog */
+
+.dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 1.25rem 1.4rem;
+}
+
+.dialog::backdrop {
+  background: rgb(20 18 15 / 0.45);
+}
+
+.dialog h2 {
+  margin: 0 0 0.75rem;
+  font: 600 1.3rem var(--serif);
+}
+
+.dialog label {
+  display: block;
+  margin: 0.8rem 0 0.25rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.dialog input[readonly] {
+  color: var(--muted);
+}
+
+.hint,
+.error {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.duplicate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: 0.88rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+/* Tag input */
+
+.tag-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 0.3rem;
+}
+
+.tag-box:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tag-box input {
+  flex: 1 1 8rem;
+  width: auto;
+  border: none;
+  padding: 0.2rem 0.3rem;
+  outline: none;
+}
+
+.tag-box .remove {
+  border: none;
+  background: none;
+  padding: 0;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+/* Phone: one column, and the tag row scrolls sideways instead of wrapping. */
+
+@media (max-width: 640px) {
+  .app {
+    padding: 0.75rem 0.75rem 2rem;
+  }
+
+  .search {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .brand {
+    flex: 1;
+  }
+
+  .switch {
+    order: 4;
+  }
+
+  .tag-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -0.75rem;
+    padding: 0.25rem 0.75rem 1rem;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

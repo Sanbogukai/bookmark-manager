@@ -40,7 +40,11 @@ void cleanUp();
 setInterval(cleanUp, DAY_MS).unref();
 
 // Starts the HTTP server on PORT; the callback runs once it is ready.
-app.listen(PORT, () => {
+// Express 5 hands a failure (such as the port already being in use) to the callback instead
+// of throwing, so the callback checks for one and stops the process rather than claiming
+// to be listening.
+app.listen(PORT, (error?: Error) => {
+  if (error) throw error;
   // Confirms the server is up and where.
   console.log(`Listening on http://localhost:${PORT}`);
 });
