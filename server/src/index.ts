@@ -10,6 +10,10 @@ import { createApp } from './app.ts';
 import { createDb } from './db.ts';
 // The daily clean-up of owners nobody has used for 30 days.
 import { DAY_MS, deleteStaleOwners } from './owners.ts';
+// Checks whether the built client is there.
+import { existsSync } from 'node:fs';
+// Builds the client folder's full path from this file's folder.
+import { resolve } from 'node:path';
 
 // Render (and other hosts) choose the port through PORT; 3000 is the local default.
 const DEFAULT_PORT = 3000;
@@ -22,8 +26,14 @@ if (!databaseUrl) throw new Error('DATABASE_URL is not set; copy .env.example to
 
 // One client, shared by the app and the clean-up.
 const db = createDb(databaseUrl);
-// The app over that database, with the real clock (the default).
-const app = createApp({ db });
+// The built client, two folders up from server/src. Render's build step makes it; in
+// development it is usually missing, because Vite serves the client, and then the app
+// serves the API alone.
+const builtClient = resolve(import.meta.dirname, '../../client/dist');
+const clientDir = existsSync(builtClient) ? builtClient : undefined;
+
+// The app over that database, with the real clock (the default), and the client when built.
+const app = createApp({ db, clientDir });
 
 // Removes stale owners and logs how many. A failure is logged and the server keeps running;
 // the next day's run tries again.

@@ -3,6 +3,10 @@
 
 // Express handles HTTP: routing and JSON parsing. The other two are only types.
 import express, { type ErrorRequestHandler, type Express } from 'express';
+// Sets the security headers (Content-Security-Policy and friends) on every answer.
+import helmet from 'helmet';
+// Joins folder and file names with the right separator for the system.
+import { join } from 'node:path';
 // The database client type.
 import type { Db } from './db.ts';
 // The error shape every failure is sent in, shared with the client.
@@ -30,18 +34,33 @@ const TRUSTED_PROXIES = 3;
 const OWNER_LIMIT = 10;
 const PREVIEW_LIMIT = 30;
 
+// Vite names every file in assets/ after a hash of its content, so a changed file gets a new
+// name and an old name never changes meaning: browsers may keep these for a year.
+const ASSET_MAX_AGE = '1y';
+
+// The Content-Security-Policy, on top of helmet's defaults (scripts, styles and everything
+// else only from this site). Card icons come from the bookmarked sites, so images may also
+// load from any https host, or be inline data: URLs.
+const CSP_DIRECTIVES = {
+  imgSrc: ["'self'", 'data:', 'https:'],
+};
+
 // What the caller passes in. Only the database is required; tests swap the clock to fix the
-// time, the fetcher to avoid the internet, and the limits to reach them quickly.
+// time, the fetcher to avoid the internet, and the limits to reach them quickly. clientDir is
+// the built client (client/dist); without it the app serves the API alone, as in development,
+// where Vite serves the client.
 export interface AppOptions {
   db: Db;
   now?: () => Date;
   fetchPage?: PageFetcher;
   ownerLimit?: number;
   previewLimit?: number;
+  clientDir?: string;
 }
 
-// The same services with every default filled in. The routers receive this.
-export type AppDeps = Required<AppOptions>;
+// The services with every default filled in. The routers receive this; clientDir is not a
+// service, and has no default, so it stays out.
+export type AppDeps = Required<Omit<AppOptions, 'clientDir'>>;
 
 // Returns a new, fully wired app.
 export function createApp(options: AppOptions): Express {
@@ -60,6 +79,9 @@ export function createApp(options: AppOptions): Express {
 
   // Reads the visitor's address through the hosting proxies.
   app.set('trust proxy', TRUSTED_PROXIES);
+
+  // Security headers first, so every answer below carries them, API and pages alike.
+  app.use(helmet({ contentSecurityPolicy: { directives: CSP_DIRECTIVES } }));
 
   // Parses JSON request bodies into req.body, refusing anything over the limit with a 413.
   app.use(express.json({ limit: JSON_LIMIT }));
@@ -87,6 +109,9 @@ export function createApp(options: AppOptions): Express {
     res.status(HTTP_NOT_FOUND).json(body);
   });
 
+  // The built client, after the API so /api never reaches it.
+  if (options.clientDir) serveClient(app, options.clientDir);
+
   // Errors always come back as JSON. Bad JSON bodies arrive here with status 400, and
   // bodies over the limit with 413. Express knows this is the error handler because it
   // takes four arguments; `_next` is unused but must be listed.
@@ -106,4 +131,24 @@ export function createApp(options: AppOptions): Express {
 
   // The caller decides whether to listen (index.ts) or to test it (Supertest).
   return app;
+}
+
+// Serves the single-page client from dir: hashed assets, then the other files, then
+// index.html for every other page address, so a reload of /?tags=react still finds the app.
+function serveClient(app: Express, dir: string): void {
+  // Hashed files, cached for a year. A missing one is a plain 404 (fallthrough: false), not
+  // the page, so a stale script reference fails loudly instead of loading HTML as JavaScript.
+  app.use(
+    '/assets',
+    express.static(join(dir, 'assets'), { immutable: true, maxAge: ASSET_MAX_AGE, fallthrough: false }),
+  );
+  // Unhashed files such as favicon.svg, revalidated each time. index: false leaves / to the
+  // fallback below, so index.html always goes out with the same no-cache header.
+  app.use(express.static(dir, { index: false }));
+  // Every other GET is a page of the app: send index.html, and tell the browser to check
+  // for a new one each time, so a deploy shows at once. cacheControl: false stops sendFile
+  // from writing its own Cache-Control over ours.
+  app.get('/{*page}', (_req, res) => {
+    res.sendFile('index.html', { root: dir, cacheControl: false, headers: { 'Cache-Control': 'no-cache' } });
+  });
 }
