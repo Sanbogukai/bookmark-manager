@@ -4,10 +4,15 @@
 
 // One sample. `read` marks it read one day after it was saved.
 export interface Sample {
+  // The page's address.
   url: string;
+  // The title, as the page itself gives it.
   title: string;
+  // A one-line summary.
   description: string;
+  // Its tags.
   tags: string[];
+  // Whether it starts as read.
   read: boolean;
 }
 
