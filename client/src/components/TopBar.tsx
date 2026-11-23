@@ -44,7 +44,7 @@ export function TopBar({ filters, onChange, onAdd }: Props) {
       <input
         type="search"
         className="search"
-        placeholder="Search titles, links and notes"
+        placeholder="Search titles and links"
         aria-label="Search"
         maxLength={SEARCH_MAX}
         value={text}
